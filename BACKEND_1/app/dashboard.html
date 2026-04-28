@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartSpend Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .summary {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: 20px 0;
+        }
+        .transactions {
+            margin-top: 20px;
+        }
+        .transactions h3 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SmartSpend Dashboard</h1>
+    <div class="summary">Total Monthly Spending: ₹<span id="total"></span></div>
+
+    <canvas id="categoryChart"></canvas>
+    <canvas id="dailyChart"></canvas>
+
+    <div class="transactions">
+        <h3>Recent Transactions</h3>
+        <ul id="transactionsList"></ul>
+    </div>
+
+    <script>
+        fetch('/dashboard_summary')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('total').textContent = data.monthly_total;
+
+                const categories = Object.keys(data.category_summary);
+                const categoryAmounts = Object.values(data.category_summary);
+                new Chart(document.getElementById('categoryChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            data: categoryAmounts,
+                            backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Spending by Category'
+                            }
+                        }
+                    }
+                });
+
+                const dates = Object.keys(data.daily_spending);
+                const dailyAmounts = Object.values(data.daily_spending);
+                new Chart(document.getElementById('dailyChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: '₹ Spent',
+                            data: dailyAmounts,
+                            backgroundColor: '#2196F3'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Daily Spending Trends'
+                            }
+                        }
+                    }
+                });
+
+                const list = document.getElementById('transactionsList');
+                data.recent_transactions.forEach(tx => {
+                    const item = document.createElement('li');
+                    item.textContent = `${tx.date} - ₹${tx.amount} at ${tx.merchant}`;
+                    list.appendChild(item);
+                });
+            });
+    </script>
+</body>
+</html>

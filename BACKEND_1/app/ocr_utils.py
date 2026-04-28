@@ -1,4 +1,5 @@
 # SmartSpendAnalyser/backend/app/ocr_utils.py
+
 import pytesseract
 from PIL import Image
 import os
