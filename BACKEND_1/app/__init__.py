@@ -29,7 +29,7 @@ def create_app():
 
     
     # Configure CORS
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"], "supports_credentials": True}})
+    CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}})
 
     # JWT Configuration
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY") 
