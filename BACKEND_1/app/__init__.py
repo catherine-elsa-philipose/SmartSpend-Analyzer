@@ -41,17 +41,13 @@ def create_app():
     initialize_db()
 
     # Register blueprint (defined in routes.py)
-    # Import the blueprint *after* app setup to avoid circular imports.
-    from .routes import main as main_bp # 'main' is the Blueprint object in routes.py
+    from app.routes.routes import routes_blueprint as main_bp
+    from app.routes.auth_routes import auth_bp
+    from app.routes.ocr_routes import ocr_bp
     app.register_blueprint(main_bp, url_prefix='/api') 
-
-    with app.app_context(): # Ensure we are in an application context
-        print("\n--- FLASK URL RULES ---")
-        for rule in app.url_map.iter_rules():
-            # Filter out internal/static routes for clarity
-            if rule.endpoint is None or rule.endpoint.startswith('static'):
-                continue
-            print(f"Endpoint: {rule.endpoint} | Path: {rule.rule} | Methods: {rule.methods}")
-        print("--- END FLASK URL RULES ---\n")
-
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(ocr_bp, url_prefix='/api')
+    # Register DataScience blueprint
+    from app.datascience.routes import ds_bp
+    app.register_blueprint(ds_bp, url_prefix='/api/ds')
     return app

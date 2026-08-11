@@ -1,25 +1,45 @@
-# Node.js dependencies (if you have a frontend project)
+# -----------------------------
+# Node.js
+# -----------------------------
 node_modules/
-FRONTEND_1/node_modules/ # If your frontend is inside FRONTEND_1
+FRONTEND_1/node_modules/
 
-# Environment variables
+# Next.js
+.next/
+FRONTEND_1/.next/
+out/
+
+# Environment Variables
 .env
+.env.local
+.env.*
+FRONTEND_1/.env.local
 
-# Python dependencies and environment
+# Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .ipynb_checkpoints/
 
-# Large/unnecessary files from your status output
-Demo_Video.mp4 # Consider hosting this on YouTube/Vimeo and linking in README
-kagle images/  # Likely data or temporary files, usually ignored
-tessaract_installed/ # This is an installation, should NEVER be committed
+# Uploads (optional if you don't want receipt images in Git)
+uploads/
+BACKEND_1/uploads/
 
-# Operating System files
+# IDE
+.vscode/
+
+# OS Files
 .DS_Store
 Thumbs.db
 
-# IDE specific files (e.g., VS Code)
-.vscode/
+# Logs
+*.log
+
+# Tesseract installation
+tessaract_installed/
+
+# Large files
+Demo_Video.mp4
+kagle images/

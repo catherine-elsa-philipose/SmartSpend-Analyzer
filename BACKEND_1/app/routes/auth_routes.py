@@ -16,7 +16,7 @@ db = client["smartspend"]
 users_collection = db["users"]
 
 # Signup route
-@auth_bp.route('/user_signup', methods=['POST'])
+@auth_bp.route('/register', methods=['POST'])
 def signup():
     data = request.get_json()
     username = data.get("username")

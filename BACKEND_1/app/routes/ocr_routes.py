@@ -1,45 +1,55 @@
 from flask import Blueprint, request, jsonify
-import pytesseract
 from PIL import Image
 import io
+import os
+import tempfile
 
-ocr_bp = Blueprint('ocr_bp', __name__)
+from ..ocr_utils import extract_text_from_image
+from ..ocr_cleaner import clean_extracted_text
 
-def clean_ocr_data(raw_text):
-    """
-    Cleans OCR extracted text.
-    Removes unwanted characters, extra spaces, and fixes common issues.
-    """
-    import re
+ocr_bp = Blueprint("ocr_bp", __name__)
 
-    # Remove unnecessary newlines and combine lines
-    cleaned_text = re.sub(r'\n+', '\n', raw_text.strip())
 
-    # Remove any non-ASCII characters (if needed)
-    cleaned_text = re.sub(r'[^\x00-\x7F]+', '', cleaned_text)
-
-    # Remove very short lines (noise)
-    lines = cleaned_text.split('\n')
-    lines = [line.strip() for line in lines if len(line.strip()) > 2]
-    cleaned_text = '\n'.join(lines)
-
-    return cleaned_text
-
-@ocr_bp.route('/ocr', methods=['POST'])
+@ocr_bp.route("/ocr", methods=["POST"])
 def ocr():
-    if 'image' not in request.files:
+    """
+    Upload an image, extract text using OCR,
+    clean the extracted text, and return the result.
+    """
+
+    if "image" not in request.files:
         return jsonify({"error": "No image file provided"}), 400
 
-    file = request.files['image']
-    if file.filename == '':
+    file = request.files["image"]
+
+    if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
-    try:
-        image_bytes = file.read()
-        image = Image.open(io.BytesIO(image_bytes))
-        extracted_text = pytesseract.image_to_string(image)
-        cleaned = clean_ocr_data(extracted_text)
+    temp_path = None
 
-        return jsonify({"extracted_text": cleaned})
+    try:
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+
+        # Extract text using the reusable OCR utility
+        extracted_text = extract_text_from_image(temp_path)
+
+        # Clean the extracted text using the reusable cleaner
+        cleaned_data = clean_extracted_text(extracted_text)
+
+        return jsonify({
+            "success": True,
+            "data": cleaned_data
+        }), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
