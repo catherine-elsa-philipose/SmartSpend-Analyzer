@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { Typography, Box, CircularProgress, Paper, Grid, Card, CardContent, Alert } from '@mui/material';
-import { getSpendingSummary, getTransactions } from '../utils/api';
+import { getSpendingSummary, getForecast } from '../utils/api';
 import { BarChart, PieChart } from '../components/Charts';
 import {
   Chart as ChartJS,
@@ -25,23 +25,11 @@ ChartJS.register(
   ArcElement
 );
 
-function TransactionDate({ date }) {
-  const [formattedDate, setFormattedDate] = useState('');
-
-  useEffect(() => {
-    if (date) {
-      setFormattedDate(new Date(date).toLocaleDateString());
-    }
-  }, [date]);
-
-  return <span>{formattedDate}</span>;
-}
-
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [summary, setSummary] = useState(null);
-  const [transactions, setTransactions] = useState([]);
+  const [forecast, setForecast] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
   const [isClient, setIsClient] = useState(false);
@@ -58,12 +46,12 @@ export default function Home() {
         setDataLoading(true);
         setDataError('');
         try {
-          const [summaryRes, transactionsRes] = await Promise.all([
-            getSpendingSummary(),
-            getTransactions(),
+          const [summaryRes, forecastRes] = await Promise.all([
+            getSpendingSummary().catch(() => null),
+            getForecast(6).catch(() => null),
           ]);
           setSummary(summaryRes);
-          setTransactions(transactionsRes);
+          setForecast(forecastRes);
         } catch (err) {
           console.error('Failed to fetch dashboard data:', err);
           setDataError('Failed to load dashboard data. Please try again.');
@@ -80,7 +68,6 @@ export default function Home() {
 
   if (loading || dataLoading) {
     return (
-      // IMPORTANT: Removed the <Layout> wrapper here for loading state
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
         <CircularProgress />
         <Typography variant="h6" sx={{ ml: 2 }}>
@@ -94,8 +81,9 @@ export default function Home() {
     return null;
   }
 
+  const categoryEntries = summary?.by_category ? Object.entries(summary.by_category) : [];
+
   return (
-    // --- IMPORTANT: Wrapped the multiple top-level elements in a React Fragment ---
     <>
       <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 2 }}>
         Welcome, {user.username || 'User'}!
@@ -119,17 +107,23 @@ export default function Home() {
           }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Monthly Spending Summary
+                Overall Spending Summary
               </Typography>
               {summary ? (
                 <Box>
-                  <Typography variant="body1">Current Month: ${summary.currentMonthSpending?.toFixed(2) || '0.00'}</Typography>
-                  <Typography variant="body1">Last Month: ${summary.lastMonthSpending?.toFixed(2) || '0.00'}</Typography>
-                  <Typography variant="body1">Avg. Daily: ${summary.averageDaily?.toFixed(2) || '0.00'}</Typography>
-                  <Typography variant="body1">Savings Rate: {summary.savingsRate || 'N/A'}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', my: 1 }}>
+                    ${summary.total_spent?.toFixed(2) || '0.00'}
+                  </Typography>
+                  <Typography variant="body1">Total Receipts: {summary.transaction_count ?? 0}</Typography>
+                  <Typography variant="body1">Period: {summary.period || 'all_time'}</Typography>
+                  {summary.message && (
+                    <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                      {summary.message}
+                    </Typography>
+                  )}
                 </Box>
               ) : (
-                <Typography>No summary available.</Typography>
+                <Typography>No spending summary available.</Typography>
               )}
             </CardContent>
           </Card>
@@ -155,25 +149,47 @@ export default function Home() {
           </Paper>
         </Grid>
 
-        {/* Recent Transactions */}
-        <Grid item xs={12}>
+        {/* Spending by Category & Forecast Breakdown */}
+        <Grid item xs={12} md={6}>
           <Paper elevation={3} sx={{ p: 3, mt: 3, transition: 'transform 0.3s ease-in-out', '&:hover': { transform: 'scale(1.01)' } }}>
             <Typography variant="h5" component="h2" gutterBottom>
-              Recent Transactions
+              Category Breakdown
             </Typography>
-            {transactions.length > 0 ? (
+            {categoryEntries.length > 0 ? (
               <Box>
-                {transactions.slice(0, 5).map((transaction) => (
-                  <Box key={transaction.id} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #eee', py: 1 }}>
-                    <Typography variant="body1">{transaction.store}</Typography>
-                    <Typography variant="body1">
-                      ${transaction.amount?.toFixed(2) || '0.00'} on <TransactionDate date={transaction.date} />
+                {categoryEntries.map(([cat, amt]) => (
+                  <Box key={cat} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #eee', py: 1 }}>
+                    <Typography variant="body1">{cat}</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                      ${amt?.toFixed(2) || '0.00'}
                     </Typography>
                   </Box>
                 ))}
               </Box>
             ) : (
-              <Typography>No recent transactions found. Upload a receipt to get started!</Typography>
+              <Typography>No category data found. Upload receipts to populate spending categories!</Typography>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper elevation={3} sx={{ p: 3, mt: 3, transition: 'transform 0.3s ease-in-out', '&:hover': { transform: 'scale(1.01)' } }}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              6-Month Spending Forecast
+            </Typography>
+            {forecast?.success && forecast?.forecast_months?.length > 0 ? (
+              <Box>
+                {forecast.forecast_months.map((m, idx) => (
+                  <Box key={m} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #eee', py: 1 }}>
+                    <Typography variant="body1">{m}</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      ${forecast.forecast_amounts[idx]?.toFixed(2) || '0.00'}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography>{forecast?.message || 'Upload receipts to generate historical expense forecasts.'}</Typography>
             )}
           </Paper>
         </Grid>

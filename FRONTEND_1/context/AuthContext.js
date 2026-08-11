@@ -1,30 +1,31 @@
 // frontend/context/AuthContext.js
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginUser, logoutUser, checkLoginStatus } from '../utils/api'; // Import your API functions
 import { useRouter } from 'next/router';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null); // Will store { username, userId, isLoggedIn: true } or null
+    const [user, setUser] = useState(null); // Stores { username, isLoggedIn: true } or null
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    const fetchUser = useCallback(async () => {
+    const fetchUser = useCallback(() => {
         setLoading(true);
         try {
-            const status = await checkLoginStatus();
-            if (status.isLoggedIn) {
-                setUser({
-                    username: status.username,
-                    userId: status.userId,
-                    isLoggedIn: true
-                });
-            } else {
-                setUser(null);
+            if (typeof window !== 'undefined') {
+                const token = localStorage.getItem('token');
+                const storedUsername = localStorage.getItem('username');
+                if (token) {
+                    setUser({
+                        username: storedUsername || 'User',
+                        isLoggedIn: true
+                    });
+                } else {
+                    setUser(null);
+                }
             }
         } catch (error) {
-            console.error('Failed to fetch user status:', error);
+            console.error('Failed to fetch local auth status:', error);
             setUser(null);
         } finally {
             setLoading(false);
@@ -35,44 +36,51 @@ export function AuthProvider({ children }) {
         fetchUser();
     }, [fetchUser]);
 
-    const login = useCallback((token, userData) => {
+    const login = useCallback((token, userData = {}) => {
+        if (typeof window !== 'undefined') {
+            if (token) {
+                localStorage.setItem('token', token);
+            }
+            if (userData.username) {
+                localStorage.setItem('username', userData.username);
+            }
+        }
         setUser({
-            username: userData.username, // Assuming userData from loginUser API response has 'username'
-            userId: userData.id,     // Assuming userData from loginUser API response has 'userId'
+            username: userData.username || 'User',
             isLoggedIn: true
         });
-        setLoading(false); // Finished logging in, so set loading to false
+        setLoading(false);
     }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             setLoading(true);
-            await logoutUser();
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('username');
+            }
             setUser(null);
-            setLoading(false);
-            router.push('/login'); // Redirect to login page after logout
+            router.push('/login');
         } catch (error) {
             console.error('Logout failed:', error);
             setUser(null);
             router.push('/login');
-        } finally{
-            setLoading(false); 
+        } finally {
+            setLoading(false);
         }
-    };
+    }, [router]);
 
-    // This value will be provided to any component that uses this context
     const value = {
         user,
         loading,
         login,
         logout,
-        fetchUser // Expose fetchUser so components can manually re-fetch (e.g., after signup)
+        fetchUser
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Custom hook to use the AuthContext
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {

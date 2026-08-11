@@ -1,8 +1,8 @@
 // frontend/pages/upload.js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../context/AuthContext'; // Corrected typo: AuthContext
-import { Button, Paper, Typography, Box, CircularProgress, Alert, Container } from '@mui/material'; // Added Container import
+import { useAuth } from '../context/AuthContext';
+import { Button, Paper, Typography, Box, CircularProgress, Alert, Container } from '@mui/material';
 import { CloudUpload } from '@mui/icons-material';
 import { uploadReceipt } from '../utils/api';
 import { motion } from 'framer-motion';
@@ -27,16 +27,11 @@ export default function Upload() {
         setUploadError('');
         setUploadSuccess(false);
 
-        console.log('--- handleUpload called ---');
-        console.log('   User object at time of upload:', user);
-        console.log('   user.userId at time of upload:', user?.userId);
-
         if (!file) {
             setUploadError("Please select an image to upload.");
             return;
         }
-        if (!user || !user.userId) {
-            console.warn('Condition met: user is null/undefined or user.userId is missing/null.');
+        if (!user || !user.isLoggedIn) {
             setUploadError("User not logged in. Please log in to upload.");
             return;
         }
@@ -44,22 +39,20 @@ export default function Upload() {
         setIsUploading(true);
 
         try {
-            await uploadReceipt(file); // userId is used on frontend for clarity, backend uses JWT identity
+            await uploadReceipt(file);
             setUploadSuccess(true);
             setFile(null);
             setTimeout(() => setUploadSuccess(false), 3000);
         } catch (error) {
             console.error('Upload failed:', error.response?.data || error.message);
-            setUploadError(error.response?.data?.error || 'Upload failed. Please try again.');
+            setUploadError(error.response?.data?.error || error.response?.data?.message || 'Upload failed. Please try again.');
         } finally {
             setIsUploading(false);
         }
-
     };
 
     if (loading) {
         return (
-            // IMPORTANT: Removed the <Layout> wrapper here for loading state
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
                 <CircularProgress sx={{ color: 'primary.light' }} />
                 <Typography variant="h6" sx={{ ml: 2, color: 'text.primary' }}>Checking authentication...</Typography>
@@ -72,8 +65,7 @@ export default function Upload() {
     }
 
     return (
-        // --- IMPORTANT: Removed the <Layout> wrapper here and added Container ---
-        <Container component="main" maxWidth="md"> {/* Using maxWidth="md" or "sm" might be better for upload content */}
+        <Container component="main" maxWidth="md">
             <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 4, color: 'primary.light' }}>
                 Upload Receipt
             </Typography>
@@ -82,13 +74,13 @@ export default function Upload() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <Paper elevation={6} sx={{ // Increased elevation for more shadow
+                <Paper elevation={6} sx={{
                     p: 4,
-                    maxWidth: 600, // Adjusted max width for the paper content
+                    maxWidth: 600,
                     margin: 'auto',
-                    mt: 2, // Keep this mt: 2 for spacing within the main content area
+                    mt: 2,
                     borderRadius: 3,
-                    background: 'linear-gradient(135deg, #333 0%, #1a1a1a 100%)', // Dark background
+                    background: 'linear-gradient(135deg, #333 0%, #1a1a1a 100%)',
                     color: 'white'
                 }}>
                     <Typography variant="h6" gutterBottom align="center" sx={{ color: '#B0BEC5' }}>
@@ -134,7 +126,8 @@ export default function Upload() {
                                 type="submit"
                                 variant="contained"
                                 color="primary"
-                                sx={{ mt: 2,
+                                sx={{
+                                    mt: 2,
                                     background: 'linear-gradient(45deg, #D32F2F 30%, #FF6659 90%)',
                                     '&:hover': { background: 'linear-gradient(45deg, #FF6659 30%, #D32F2F 90%)' },
                                     color: 'white'
@@ -148,6 +141,5 @@ export default function Upload() {
                 </Paper>
             </motion.div>
         </Container>
-        // --- IMPORTANT: Removed the </Layout> wrapper here ---
     );
 }
